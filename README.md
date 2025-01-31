@@ -1,3 +1,7 @@
+# Porting to Firefox
+
+This fork is an attempt to port the Chrome extension to Firefox.
+
 # Salty Boy
 
 Simple betting tool and betting bot bot for usage in [Salty Bet](https://saltybet.com). 
