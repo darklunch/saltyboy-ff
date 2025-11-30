@@ -197,13 +197,14 @@ function getSaltyBetStatus() {
 }
 
 /**
- * Get the match data from Salty Boy
+ * Get the match data from Salty Boy via Background Script Proxy
  *
- * @returns {object} - MatchData
+ * @returns {Promise<object>} - MatchData
  */
 function getSaltyBoyMatchData() {
     FETCH_IN_PROGRESS = true
 
+    // Helper function to process the stats (Moved inside to keep scope clean)
     function parseStats(fighterInfo) {
         if (fighterInfo == null) {
             return
@@ -242,19 +243,37 @@ function getSaltyBoyMatchData() {
         fighterInfo['stats'] = stats
     }
 
-    verboseLog('Getting fighter data from SaltyBoy')
-    return fetch(
-        `${SALTY_BOY_URL}/api/current_match_info/?saltyboy_version=${APP_VERSION}`,
-        {
-            method: 'get',
-        }
-    )
-        .then((res) => res.json())
-        .then((data) => {
-            parseStats(data.fighter_blue_info)
-            parseStats(data.fighter_red_info)
-            return data
-        })
+    verboseLog('Requesting fighter data via Background Script...')
+
+    return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+            { 
+                type: 'fetchMatchData', 
+                version: APP_VERSION 
+            }, 
+            (response) => {
+                // Handle communication errors (e.g., extension updated/reloaded context lost)
+                if (chrome.runtime.lastError) {
+                    console.error("Runtime connection error:", chrome.runtime.lastError);
+                    reject(chrome.runtime.lastError);
+                    return;
+                }
+
+                if (response && response.success) {
+                    let data = response.data;
+                    
+                    // We must still process the stats locally as we did before
+                    parseStats(data.fighter_blue_info);
+                    parseStats(data.fighter_red_info);
+                    
+                    resolve(data);
+                } else {
+                    let msg = response ? response.error : 'Unknown error from background script';
+                    reject(new Error(msg));
+                }
+            }
+        );
+    });
 }
 
 /**
